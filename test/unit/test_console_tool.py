@@ -31,7 +31,10 @@ from b2sdk.v3 import (
     UploadSourceBytes,
     fix_windows_path_limit,
 )
-from b2sdk.v3.exception import Conflict  # Any error for testing fast-fail of the rm command.
+from b2sdk.v3.exception import (  # Conflict: any error for testing fast-fail of the rm command.
+    BucketIdNotFound,
+    Conflict,
+)
 from b2sdk.version import VERSION as b2sdk_version
 from more_itertools import one
 
@@ -2597,6 +2600,32 @@ class TestConsoleTool(BaseConsoleToolTest):
         # Using --threads is exclusive with other options
         with self.assertRaises(ValueError):
             self._test_sync_threads(threads=1, sync_threads=1, download_threads=1, upload_threads=1)
+
+    def test_stale_bucket_id_error_suggests_cache_reset(self):
+        # A bucket resolved from the local cache can be gone on the server (deleted, or deleted
+        # and recreated, elsewhere): the server answers bad_bucket_id. Give the same hint as for
+        # an unknown bucket name instead of a bare error.
+        self._authorize_account()
+        self._create_my_bucket()
+        with mock.patch.object(
+            self.raw_api, 'list_file_names', side_effect=BucketIdNotFound('bucket_0')
+        ):
+            self._run_command(
+                ['ls', *self.b2_uri_args('my-bucket')],
+                '',
+                'Bucket not found: bucket_0. If you believe it exists, run `b2 bucket list` to reset cache, then try again.\n',
+                1,
+            )
+
+    def test_ls_unknown_bucket_suggests_cache_reset(self):
+        # `ls` wraps SDK errors in a CommandError; the hint must still come through
+        self._authorize_account()
+        self._run_command(
+            ['ls', *self.b2_uri_args('no-such-bucket')],
+            '',
+            'Bucket not found: no-such-bucket. If you believe it exists, run `b2 bucket list` to reset cache, then try again.\n',
+            1,
+        )
 
     def test_ls(self):
         self._authorize_account()

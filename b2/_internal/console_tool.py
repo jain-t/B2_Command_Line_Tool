@@ -111,6 +111,7 @@ from b2sdk.v3 import (
 from b2sdk.v3.exception import (
     B2Error,
     BadFileInfo,
+    BucketIdNotFound,
     EmptyDirectory,
     FileNotPresent,
     MissingAccountData,
@@ -5531,9 +5532,22 @@ class ConsoleTool:
             return 1
         except B2Error as e:
             logger.exception('ConsoleTool command error')
-            if isinstance(e, NonExistentBucket):
+            # Commands may wrap the SDK error in a CommandError (`ls` does); look at the cause too,
+            # so the bucket hints below apply either way.
+            errors = (e, e.__cause__) if isinstance(e, CommandError) else (e,)
+            bucket_error = next(
+                (err for err in errors if isinstance(err, (NonExistentBucket, BucketIdNotFound))),
+                None,
+            )
+            if isinstance(bucket_error, NonExistentBucket):
                 self._print_stderr(
-                    f'Bucket not found: {e.bucket_name}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
+                    f'Bucket not found: {bucket_error.bucket_name}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
+                )
+            elif isinstance(bucket_error, BucketIdNotFound):
+                # The id came from the local cache and the server no longer knows it: the bucket
+                # was deleted, or deleted and recreated, from elsewhere. Same remedy as above.
+                self._print_stderr(
+                    f'Bucket not found: {bucket_error.bucket_id}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
                 )
             else:
                 self._print_stderr(f'ERROR: {e}')

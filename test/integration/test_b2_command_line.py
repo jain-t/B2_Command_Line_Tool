@@ -906,7 +906,8 @@ def test_account(b2_tool, cli_version, apiver_int, monkeypatch):
         bucket_name = b2_tool.generate_bucket_name()
         b2_tool.should_fail(
             ['bucket', 'create', bucket_name, 'allPrivate'],
-            r'ERROR: Missing account data: \'NoneType\' object is not subscriptable (\(key 0\) )? '
+            # older b2sdk leaked the TypeError text; newer names the missing field
+            r'ERROR: Missing account data: (\w+|\'NoneType\' object is not subscriptable) (\(key 0\) )? '
             rf'Use: \'{cli_version}(\.(exe|EXE))? account authorize\' or provide auth data with \'B2_APPLICATION_KEY_ID\' and '
             r'\'B2_APPLICATION_KEY\' environment variables',
         )
