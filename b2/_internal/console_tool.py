@@ -111,6 +111,7 @@ from b2sdk.v3 import (
 from b2sdk.v3.exception import (
     B2Error,
     BadFileInfo,
+    BucketIdNotFound,
     EmptyDirectory,
     FileNotPresent,
     MissingAccountData,
@@ -5534,6 +5535,14 @@ class ConsoleTool:
             if isinstance(e, NonExistentBucket):
                 self._print_stderr(
                     f'Bucket not found: {e.bucket_name}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
+                )
+            elif isinstance(e.__cause__, BucketIdNotFound):
+                self._print_stderr(
+                    f'Bucket not found: {e.__cause__.bucket_id}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
+                )
+            elif isinstance(e, BucketIdNotFound):
+                self._print_stderr(
+                    f'Bucket not found: {e.bucket_id}. If you believe it exists, run `{self.b2_binary_name} bucket list` to reset cache, then try again.'
                 )
             else:
                 self._print_stderr(f'ERROR: {e}')
